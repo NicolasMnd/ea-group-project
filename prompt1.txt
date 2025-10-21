@@ -1,0 +1,86 @@
+I am writing a solver for the travelling salesman problem through evolutionary algorithms in Python.
+You should write code for a Solver class, one method at the time.
+
+The problem is encoded in a weight nxn matrix with the weight of the edge (i, j) in position (i, j) in the matrix.
+
+You should represent a valid solution as an ordered list of numbers, where the number of each one of the vertices appears exactly once. Use numpy.
+
+Write some code to generate lambda random valid solut ions as a starting population.
+
+------
+
+import numpy as np
+
+class Solver:
+    def __init__(self, weight_matrix):
+        self.weight_matrix = weight_matrix
+        self.n = weight_matrix.shape[0]
+
+    def generate_initial_population(self, population_size):
+        """
+        Generates a population of valid TSP solutions.
+        
+        Each solution is a permutation of the node indices.
+        
+        Parameters:
+        - population_size (int): Number of solutions to generate.
+        
+        Returns:
+        - population (np.ndarray): Array of shape (population_size, n) with each row a valid tour.
+        """
+        population = np.array([
+            np.random.permutation(self.n)
+            for _ in range(population_size)
+        ])
+        return population
+------
+Add a check for the solution to be valid, considering the weight matrix represents non existing edges as the float inf.
+
+Also add a seed to control the RNG
+------
+import numpy as np
+
+class Solver:
+    def __init__(self, weight_matrix, seed=None):
+        self.weight_matrix = weight_matrix
+        self.n = weight_matrix.shape[0]
+        self.rng = np.random.default_rng(seed)
+
+    def is_valid_solution(self, solution):
+        """
+        Checks if a solution is valid (no edge has infinite weight).
+        """
+        for i in range(self.n):
+            from_node = solution[i]
+            to_node = solution[(i + 1) % self.n]  # wrap around to form a cycle
+            if self.weight_matrix[from_node, to_node] == np.inf:
+                return False
+        return True
+
+    def generate_initial_population(self, population_size):
+        """
+        Generates a population of valid TSP solutions.
+        
+        Each solution is a permutation of the node indices.
+        Invalid solutions (with np.inf edges) are discarded.
+        
+        Parameters:
+        - population_size (int): Number of solutions to generate.
+        
+        Returns:
+        - population (np.ndarray): Array of shape (population_size, n) with each row a valid tour.
+        """
+        population = []
+        attempts = 0
+        max_attempts = population_size * 10  # prevent infinite loops
+
+        while len(population) < population_size and attempts < max_attempts:
+            candidate = self.rng.permutation(self.n)
+            if self.is_valid_solution(candidate):
+                population.append(candidate)
+            attempts += 1
+
+        if len(population) < population_size:
+            raise ValueError("Could not generate enough valid solutions. Check the weight matrix.")
+
+        return np.array(population)
