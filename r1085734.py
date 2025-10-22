@@ -1,6 +1,5 @@
-import Reporter
 import numpy as np
-import random
+import Reporter
 
 class r1085734:
 
@@ -26,9 +25,9 @@ class r1085734:
             return True
 
         while len(population) < self.population_size - int(self.include_greedy):
-            tour = [0] + random.sample(range(1, n), n - 1)
+            tour = np.concatenate(([0], np.random.permutation(np.arange(1, n))))
             if is_valid_tour(tour):
-                population.append(np.array(tour))
+                population.append(tour)
 
         if self.include_greedy:
             greedy_tour = self.greedy_solution(distance_matrix)
@@ -60,27 +59,29 @@ class r1085734:
         return total_distance
 
     def k_tournament_selection(self, population, fitnesses):
-        selected = random.sample(list(zip(population, fitnesses)), self.k_tournament)
+        indices = np.random.choice(len(population), self.k_tournament, replace=False)
+        selected = [(population[i], fitnesses[i]) for i in indices]
         selected.sort(key=lambda x: x[1])
         return selected[0][0]
 
     def swap_mutation(self, tour):
-        if random.random() < self.mutation_prob_swap:
-            i, j = random.sample(range(1, len(tour)), 2)
+        if np.random.rand() < self.mutation_prob_swap:
+            i, j = np.random.choice(np.arange(1, len(tour)), 2, replace=False)
             tour[i], tour[j] = tour[j], tour[i]
         return tour
 
     def insert_mutation(self, tour):
-        if random.random() < self.mutation_prob_insert:
-            i, j = sorted(random.sample(range(1, len(tour)), 2))
-            city = tour.pop(j)
-            tour.insert(i, city)
+        if np.random.rand() < self.mutation_prob_insert:
+            i, j = np.sort(np.random.choice(np.arange(1, len(tour)), 2, replace=False))
+            city = tour[j]
+            tour = np.delete(tour, j)
+            tour = np.insert(tour, i, city)
         return tour
 
     def pmx_crossover(self, parent1, parent2):
         size = len(parent1)
-        p1, p2 = sorted(random.sample(range(1, size), 2))
-        child = [-1] * size
+        p1, p2 = np.sort(np.random.choice(np.arange(1, size), 2, replace=False))
+        child = -np.ones(size, dtype=int)
         child[0] = 0
         child[p1:p2] = parent1[p1:p2]
 
@@ -90,14 +91,14 @@ class r1085734:
                 pos = i
                 while True:
                     val = parent1[pos]
-                    pos = parent2.tolist().index(val)
+                    pos = np.where(parent2 == val)[0][0]
                     if child[pos] == -1:
                         child[pos] = parent2[i]
                         break
         for i in range(1, size):
             if child[i] == -1:
                 child[i] = parent2[i]
-        return np.array(child)
+        return child
 
     def edge_crossover(self, parent1, parent2):
         size = len(parent1)
@@ -116,7 +117,7 @@ class r1085734:
                 next_city = min(edge_map[current], key=lambda x: len(edge_map[x]))
             else:
                 remaining = [c for c in parent1 if c not in child]
-                next_city = random.choice(remaining)
+                next_city = np.random.choice(remaining)
             child.append(next_city)
             current = next_city
         return np.array(child)
@@ -136,13 +137,13 @@ class r1085734:
             while len(new_population) < self.population_size:
                 parent1 = self.k_tournament_selection(population, fitnesses)
                 parent2 = self.k_tournament_selection(population, fitnesses)
-                if random.random() < 0.5:
+                if np.random.rand() < 0.5:
                     child = self.pmx_crossover(parent1.copy(), parent2.copy())
                 else:
                     child = self.edge_crossover(parent1.copy(), parent2.copy())
-                child = self.swap_mutation(child.tolist())
+                child = self.swap_mutation(child)
                 child = self.insert_mutation(child)
-                new_population.append(np.array(child))
+                new_population.append(child)
 
             combined_population = population + new_population
             combined_fitnesses = [self.evaluate_fitness(tour, distance_matrix) for tour in combined_population]
@@ -153,7 +154,7 @@ class r1085734:
             mean_objective = np.mean(fitnesses)
             best_objective = fitnesses[0]
             best_solution = population[0]
-            
+
             print(f"----iteration {iteration+1}----")
             print(f"mean fitness={mean_objective:.2f}")
             print(f"best fitness={best_objective:.2f}")
@@ -168,3 +169,4 @@ class r1085734:
 if __name__ == "__main__":
     solver = r1085734()
     solver.optimize("tour50.csv")
+    
