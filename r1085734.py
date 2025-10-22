@@ -7,55 +7,56 @@ class r1085734:
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
         self.population_size = 200
-        self.num_generations = 1000
+        self.num_iterations = 500
         self.k_tournament = 5
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
 
-    def initialize_population(self, distanceMatrix):
-        n = distanceMatrix.shape[0]
+    def initialize_population(self, distance_matrix):
+        n = distance_matrix.shape[0]
         population = []
 
         def is_valid_tour(tour):
             for i in range(len(tour) - 1):
-                if np.isinf(distanceMatrix[tour[i], tour[i+1]]):
+                if np.isinf(distance_matrix[tour[i], tour[i+1]]):
                     return False
-            if np.isinf(distanceMatrix[tour[-1], tour[0]]):
+            if np.isinf(distance_matrix[tour[-1], tour[0]]):
                 return False
             return True
 
         while len(population) < self.population_size - int(self.include_greedy):
+            tour = [0] + random.sample(range(1, n), n - 1)
             if is_valid_tour(tour):
                 population.append(np.array(tour))
 
         if self.include_greedy:
-            greedy_tour = self.greedy_solution(distanceMatrix)
+            greedy_tour = self.greedy_solution(distance_matrix)
             population.append(greedy_tour)
 
         return population
 
-    def greedy_solution(self, distanceMatrix):
-        n = distanceMatrix.shape[0]
+    def greedy_solution(self, distance_matrix):
+        n = distance_matrix.shape[0]
         unvisited = set(range(1, n))
         tour = [0]
         while unvisited:
             last = tour[-1]
-            next_city = min(unvisited, key=lambda x: distanceMatrix[last][x] if not np.isinf(distanceMatrix[last][x]) else float('inf'))
-            if np.isinf(distanceMatrix[last][next_city]):
+            next_city = min(unvisited, key=lambda x: distance_matrix[last][x] if not np.isinf(distance_matrix[last][x]) else float('inf'))
+            if np.isinf(distance_matrix[last][next_city]):
                 break
             tour.append(next_city)
             unvisited.remove(next_city)
         return np.array(tour)
 
-    def evaluate_fitness(self, tour, distanceMatrix):
+    def evaluate_fitness(self, tour, distance_matrix):
         total_distance = 0
         for i in range(len(tour)):
             from_city = tour[i]
             to_city = tour[(i + 1) % len(tour)]
-            if np.isinf(distanceMatrix[from_city][to_city]):
+            if np.isinf(distance_matrix[from_city][to_city]):
                 return float('inf')
-            total_distance += distanceMatrix[from_city][to_city]
+            total_distance += distance_matrix[from_city][to_city]
         return total_distance
 
     def k_tournament_selection(self, population, fitnesses):
@@ -121,17 +122,16 @@ class r1085734:
         return np.array(child)
 
     def optimize(self, filename):
-        file = open(filename)
-        distanceMatrix = np.loadtxt(file, delimiter=",")
-        file.close()
+        with open(filename) as file:
+            distance_matrix = np.loadtxt(file, delimiter=",")
 
-        population = self.initialize_population(distanceMatrix)
-        fitnesses = [self.evaluate_fitness(tour, distanceMatrix) for tour in population]
+        population = self.initialize_population(distance_matrix)
+        fitnesses = [self.evaluate_fitness(tour, distance_matrix) for tour in population]
 
-        bestObjective = float('inf')
-        bestSolution = None
+        best_objective = float('inf')
+        best_solution = None
 
-        for generation in range(self.num_generations):
+        for iteration in range(self.num_iterations):
             new_population = []
             while len(new_population) < self.population_size:
                 parent1 = self.k_tournament_selection(population, fitnesses)
@@ -145,21 +145,21 @@ class r1085734:
                 new_population.append(np.array(child))
 
             combined_population = population + new_population
-            combined_fitnesses = [self.evaluate_fitness(tour, distanceMatrix) for tour in combined_population]
+            combined_fitnesses = [self.evaluate_fitness(tour, distance_matrix) for tour in combined_population]
             sorted_combined = sorted(zip(combined_population, combined_fitnesses), key=lambda x: x[1])
             population = [x[0] for x in sorted_combined[:self.population_size]]
             fitnesses = [x[1] for x in sorted_combined[:self.population_size]]
 
-            meanObjective = np.mean(fitnesses)
-            bestObjective = fitnesses[0]
-            bestSolution = population[0]
+            mean_objective = np.mean(fitnesses)
+            best_objective = fitnesses[0]
+            best_solution = population[0]
             
-            print(f"---generation {generation +1}---")
-            print(f"mean fitness={meanObjective:.2f}")
-            print(f"best fitness={bestObjective:.2f}")
-            print("---------")
+            print(f"----iteration {iteration+1}----")
+            print(f"mean fitness={mean_objective:.2f}")
+            print(f"best fitness={best_objective:.2f}")
+            print("----------------------")
 
-            timeLeft = self.reporter.report(meanObjective, bestObjective, bestSolution)
+            timeLeft = self.reporter.report(mean_objective, best_objective, best_solution)
             if timeLeft < 0:
                 break
 
