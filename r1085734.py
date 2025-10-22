@@ -1,220 +1,169 @@
 import Reporter
 import numpy as np
+import random
 
+# Modify the class name to match your student number.
 class r1085734:
 
-    def __init__(self, seed=None):
-        self.k = 70
-        self.rng = np.random.default_rng(seed)
+    def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
-    
-    def is_valid_solution(self, solution, weight_matrix):
-        """
-        Checks if a solution is valid (no edge has infinite weight).
-        """
-        for i in range(self.n):
-            from_node = solution[i]
-            # wrap around to form a cycle
-            to_node = solution[(i + 1) % self.n]  
-            if weight_matrix[from_node, to_node] == np.inf:
-                return False
-        return True
-    
+        self.population_size = 200
+        self.num_generations = 1000
+        self.k_tournament = 5
+        self.mutation_prob_swap = 0.05
+        self.mutation_prob_insert = 0.1
+        self.include_greedy = False
 
-    def generate_initial_population(self, population_size):
-        """
-        Generates a population of valid TSP solutions.
-        
-        Each solution is a permutation of the node indices.
-        Invalid solutions (with np.inf edges) are discarded.
-        
-        Parameters:
-        - population_size (int): Number of solutions to generate.
-        
-        Returns:
-        - population (np.ndarray): Array of shape (population_size, n) 
-        with each row a valid tour.
-        """
+    def initialize_population(self, distanceMatrix):
+        n = distanceMatrix.shape[0]
         population = []
-        attempts = 0
-        max_attempts = population_size * 10  # prevent infinite loops
 
-        while len(population) < population_size and attempts < max_attempts:
-            candidate = self.rng.permutation(self.n)
-            if self.is_valid_solution(candidate, self.distanceMatrix):
-                population.append(candidate)
-            attempts += 1
+        def is_valid_tour(tour):
+            for i in range(len(tour) - 1):
+                if np.isinf(distanceMatrix[tour[i], tour[i+1]]):
+                    return False
+            if np.isinf(distanceMatrix[tour[-1], tour[0]]):
+                return False
+            return True
 
-        if len(population) < population_size:
-            raise ValueError("Could not generate enough valid solutions. Check the weight matrix.")
+        while len(population) < self.population_size - int(self.include_greedy):
+            tour = [0] + random.sample(range(1, n), n - 1)
+            if is_valid_tour(tour):
+                population.append(np.array(tour))
 
-        return np.array(population)
-    
-    def fitness(self, solution):
-        """
-        Computes the total length of the tour represented by the solution.
-        
-        Parameters:
-        - solution (np.ndarray): A permutation of node indices representing a tour.
-        
-        Returns:
-        - total_distance (float): Sum of weights along the tour. Returns np.inf if any edge is invalid.
-        """
-        total_distance = 0.0
-        for i in range(self.n):
-            from_node = solution[i]
-            to_node = solution[(i + 1) % self.n]  # wrap around to form a cycle
-            weight = self.distanceMatrix[from_node, to_node]
-            if weight == np.inf:
-                return np.inf
-            total_distance += weight
+        if self.include_greedy:
+            greedy_tour = self.greedy_solution(distanceMatrix)
+            population.append(greedy_tour)
+
+        return population
+
+    def greedy_solution(self, distanceMatrix):
+        n = distanceMatrix.shape[0]
+        unvisited = set(range(1, n))
+        tour = [0]
+        while unvisited:
+            last = tour[-1]
+            next_city = min(unvisited, key=lambda x: distanceMatrix[last][x] if not np.isinf(distanceMatrix[last][x]) else float('inf'))
+            if np.isinf(distanceMatrix[last][next_city]):
+                break
+            tour.append(next_city)
+            unvisited.remove(next_city)
+        return np.array(tour)
+
+    def evaluate_fitness(self, tour, distanceMatrix):
+        total_distance = 0
+        for i in range(len(tour)):
+            from_city = tour[i]
+            to_city = tour[(i + 1) % len(tour)]
+            if np.isinf(distanceMatrix[from_city][to_city]):
+                return float('inf')
+            total_distance += distanceMatrix[from_city][to_city]
         return total_distance
-    
 
-    def evaluate_population(self, population):
-        """
-        Evaluates a population of solutions and returns:
-        - mean objective value
-        - best objective value
-        - best solution
+    def k_tournament_selection(self, population, fitnesses):
+        selected = random.sample(list(zip(population, fitnesses)), self.k_tournament)
+        selected.sort(key=lambda x: x[1])
+        return selected[0][0]
 
-        Parameters:
-        - population (np.ndarray): Array of shape (population_size, n)
+    def swap_mutation(self, tour):
+        if random.random() < self.mutation_prob_swap:
+            i, j = random.sample(range(1, len(tour)), 2)
+            tour[i], tour[j] = tour[j], tour[i]
+        return tour
 
-        Returns:
-        - meanObjective (float)
-        - bestObjective (float)
-        - bestSolution (np.ndarray)
-        """
-        fitness_values = np.array([self.fitness(ind) for ind in population])
-        meanObjective = np.mean(fitness_values)
-        best_idx = np.argmin(fitness_values)
-        bestObjective = fitness_values[best_idx]
-        bestSolution = population[best_idx]
-        return meanObjective, bestObjective, bestSolution
-    
-    def tournament_selection(self, k, num_selected, population):
-        """
-        Selects individuals using k-tournament selection.
+    def insert_mutation(self, tour):
+        if random.random() < self.mutation_prob_insert:
+            i, j = sorted(random.sample(range(1, len(tour)), 2))
+            city = tour.pop(j)
+            tour.insert(i, city)
+        return tour
 
-        Parameters:
-        - k (int): Number of individuals in each tournament.
-        - num_selected (int): Number of individuals to select.
-        - population (np.ndarray): Current population.
+    def pmx_crossover(self, parent1, parent2):
+        size = len(parent1)
+        p1, p2 = sorted(random.sample(range(1, size), 2))
+        child = [-1] * size
+        child[0] = 0
+        child[p1:p2] = parent1[p1:p2]
 
-        Returns:
-        - selected (np.ndarray): Selected individuals for recombination.
-        """
-        selected = []
-        for _ in range(num_selected):
-            tournament = self.rng.choice(population, size=k, replace=False)
-            fitnesses = np.array([self.fitness(ind) for ind in tournament])
-            winner = tournament[np.argmin(fitnesses)]
-            selected.append(winner)
-        return np.array(selected)
-    
+        for i in range(p1, p2):
+            if parent2[i] not in child:
+                val = parent2[i]
+                pos = i
+                while True:
+                    val = parent1[pos]
+                    pos = parent2.tolist().index(val)
+                    if child[pos] == -1:
+                        child[pos] = parent2[i]
+                        break
+        for i in range(1, size):
+            if child[i] == -1:
+                child[i] = parent2[i]
+        return np.array(child)
 
-    def recombine(self, parents):
-        """
-        Performs ordered crossover (OX) on pairs of parents.
+    def edge_crossover(self, parent1, parent2):
+        size = len(parent1)
+        edge_map = {i: set() for i in parent1}
+        for p in [parent1, parent2]:
+            for i in range(size):
+                edge_map[p[i]].add(p[(i - 1) % size])
+                edge_map[p[i]].add(p[(i + 1) % size])
 
-        Parameters:
-        - parents (np.ndarray): Array of selected parents.
-
-        Returns:
-        - offspring (np.ndarray): Array of recombined children.
-        """
-        offspring = []
-        num_parents = len(parents)
-        for i in range(0, num_parents, 2):
-            parent1 = parents[i]
-            parent2 = parents[(i + 1) % num_parents]  # wrap around if odd number
-
-            # Ordered crossover
-            start, end = sorted(self.rng.choice(self.n, size=2, replace=False))
-            child = [-1] * self.n
-            child[start:end] = parent1[start:end]
-
-            # Fill remaining positions from parent2
-            p2_idx = 0
-            for j in range(self.n):
-                if child[j] == -1:
-                    while parent2[p2_idx] in child:
-                        p2_idx += 1
-                    child[j] = parent2[p2_idx]
-
-            offspring.append(np.array(child))
-        return np.array(offspring)
-    
-    def mutate(self, population, mutation_rate=0.2):
-        """
-        Mutates a percentage of the population by swapping two cities in each selected individual.
-
-        Parameters:
-        - population (np.ndarray): Current population.
-        - mutation_rate (float): Fraction of individuals to mutate (e.g., 0.2 = 20%).
-
-        Returns:
-        - mutated_population (np.ndarray): Population after mutation.
-        """
-        mutated_population = population.copy()
-        num_to_mutate = int(len(population) * mutation_rate)
-
-        indices = self.rng.choice(len(population), size=num_to_mutate, replace=False)
-        for idx in indices:
-            individual = mutated_population[idx].copy()
-            i, j = self.rng.choice(self.n, size=2, replace=False)
-            individual[i], individual[j] = individual[j], individual[i]
-            mutated_population[idx] = individual
-
-        return mutated_population
-
+        current = parent1[0]
+        child = [current]
+        while len(child) < size:
+            for edges in edge_map.values():
+                edges.discard(current)
+            if edge_map[current]:
+                next_city = min(edge_map[current], key=lambda x: len(edge_map[x]))
+            else:
+                remaining = [c for c in parent1 if c not in child]
+                next_city = random.choice(remaining)
+            child.append(next_city)
+            current = next_city
+        return np.array(child)
 
     def optimize(self, filename):
-        with open(filename) as file:
-            self.distanceMatrix = np.loadtxt(file, delimiter=",")
-            self.n = self.distanceMatrix.shape[0]
+        file = open(filename)
+        distanceMatrix = np.loadtxt(file, delimiter=",")
+        file.close()
 
-        population_size = 500
-        population = self.generate_initial_population(population_size)
+        population = self.initialize_population(distanceMatrix)
+        fitnesses = [self.evaluate_fitness(tour, distanceMatrix) for tour in population]
 
-        i = 1
-        while i <= 10000:
-            meanObjective, bestObjective, bestSolution = self.evaluate_population(population)
+        bestObjective = float('inf')
+        bestSolution = None
 
-            print(f"\n---Iteration {i}---")
-            print(f"Mean Objective: {meanObjective}")
-            print(f"Best Objective: {bestObjective}")
-            print(f"Best Solution: {bestSolution}")
-            print("----------------------")
+        for generation in range(self.num_generations):
+            new_population = []
+            while len(new_population) < self.population_size:
+                parent1 = self.k_tournament_selection(population, fitnesses)
+                parent2 = self.k_tournament_selection(population, fitnesses)
+                if random.random() < 0.5:
+                    child = self.pmx_crossover(parent1.copy(), parent2.copy())
+                else:
+                    child = self.edge_crossover(parent1.copy(), parent2.copy())
+                child = self.swap_mutation(child.tolist())
+                child = self.insert_mutation(child)
+                new_population.append(np.array(child))
 
-            # Selection
-            selected_parents = self.tournament_selection(k=self.k, num_selected=population_size, population=population)
+            combined_population = population + new_population
+            combined_fitnesses = [self.evaluate_fitness(tour, distanceMatrix) for tour in combined_population]
+            sorted_combined = sorted(zip(combined_population, combined_fitnesses), key=lambda x: x[1])
+            population = [x[0] for x in sorted_combined[:self.population_size]]
+            fitnesses = [x[1] for x in sorted_combined[:self.population_size]]
 
-            # Recombination
-            offspring = self.recombine(selected_parents)
+            meanObjective = np.mean(fitnesses)
+            bestObjective = fitnesses[0]
+            bestSolution = population[0]
 
-            # Mutation
-            offspring = self.mutate(offspring, mutation_rate=0.3)
+            print(f"Generation {generation+1}: Mean Fitness = {meanObjective:.2f}, Best Fitness = {bestObjective:.2f}")
 
-            # Combine and eliminate
-            combined_population = np.vstack((population, offspring))
-            fitness_values = np.array([self.fitness(ind) for ind in combined_population])
-            best_indices = np.argsort(fitness_values)[:population_size]
-            population = combined_population[best_indices]
-
-            # Report
             timeLeft = self.reporter.report(meanObjective, bestObjective, bestSolution)
             if timeLeft < 0:
                 break
 
-            i += 1
-
         return 0
-    
-def main():
-    solver = r1085734(seed=42)
-    solver.optimize("tour50.csv")
 
 if __name__ == "__main__":
-    main()
+    solver = r1085734()
+    solver.optimize("tour250.csv")
