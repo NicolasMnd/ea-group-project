@@ -2,7 +2,6 @@ import Reporter
 import numpy as np
 import random
 
-# Modify the class name to match your student number.
 class r1085734:
 
     def __init__(self):
@@ -27,7 +26,6 @@ class r1085734:
             return True
 
         while len(population) < self.population_size - int(self.include_greedy):
-            tour = [0] + random.sample(range(1, n), n - 1)
             if is_valid_tour(tour):
                 population.append(np.array(tour))
 
@@ -155,8 +153,11 @@ class r1085734:
             meanObjective = np.mean(fitnesses)
             bestObjective = fitnesses[0]
             bestSolution = population[0]
-
-            print(f"Generation {generation+1}: Mean Fitness = {meanObjective:.2f}, Best Fitness = {bestObjective:.2f}")
+            
+            print(f"---generation {generation +1}---")
+            print(f"mean fitness={meanObjective:.2f}")
+            print(f"best fitness={bestObjective:.2f}")
+            print("---------")
 
             timeLeft = self.reporter.report(meanObjective, bestObjective, bestSolution)
             if timeLeft < 0:
@@ -166,4 +167,4 @@ class r1085734:
 
 if __name__ == "__main__":
     solver = r1085734()
-    solver.optimize("tour250.csv")
+    solver.optimize("tour50.csv")
