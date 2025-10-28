@@ -8,9 +8,9 @@ class r1085734:
 
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
-        self.population_size = 100
-        self.offspring_size = 100
-        self.num_iterations = 500
+        self.population_size = 1000
+        self.offspring_size = 2000
+        self.num_iterations = 200
         self.k_tournament = 3
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
