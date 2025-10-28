@@ -1,6 +1,8 @@
 import numpy as np
 import Reporter
 
+TOUR_FILE = "tour50.csv"
+
 class r1085734:
 
     def __init__(self):
@@ -168,5 +170,5 @@ class r1085734:
 
 if __name__ == "__main__":
     solver = r1085734()
-    solver.optimize("tour50.csv")
+    solver.optimize(TOUR_FILE)
     
