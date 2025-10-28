@@ -2,7 +2,7 @@ import numpy as np
 import Reporter
 
 TOUR_FILE = "tour50.csv"
-SEED = 42
+SEED = 41
 
 class r1085734:
 
@@ -14,6 +14,7 @@ class r1085734:
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
+        self.edge_crossover_prob = 0.8
         np.random.seed(SEED)
 
     def initialize_population(self, distance_matrix):
@@ -138,7 +139,7 @@ class r1085734:
             while len(new_population) < self.population_size:
                 parent1 = self.k_tournament_selection(population, fitnesses)
                 parent2 = self.k_tournament_selection(population, fitnesses)
-                if np.random.rand() < 0.5:
+                if np.random.rand() > self.edge_crossover_prob:
                     child = self.pmx_crossover(parent1.copy(), parent2.copy())
                 else:
                     child = self.edge_crossover(parent1.copy(), parent2.copy())
