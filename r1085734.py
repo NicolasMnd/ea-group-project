@@ -2,19 +2,20 @@ import numpy as np
 import Reporter
 
 TOUR_FILE = "tour50.csv"
-SEED = 41
+SEED = 123
 
 class r1085734:
 
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
         self.population_size = 100
+        self.offspring_size = 100
         self.num_iterations = 500
         self.k_tournament = 3
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
-        self.edge_crossover_prob = 0.8
+        self.edge_crossover_prob = 1.0
         np.random.seed(SEED)
 
     def initialize_population(self, distance_matrix):
@@ -136,7 +137,7 @@ class r1085734:
         for iteration in range(self.num_iterations):
             new_population = []
 
-            while len(new_population) < self.population_size:
+            while len(new_population) < self.offspring_size:
                 parent1 = self.k_tournament_selection(population, fitnesses)
                 parent2 = self.k_tournament_selection(population, fitnesses)
                 if np.random.rand() > self.edge_crossover_prob:
