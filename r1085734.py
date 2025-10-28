@@ -9,8 +9,8 @@ class r1085734:
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
         self.population_size = 100
-        self.num_iterations = 100
-        self.k_tournament = 5
+        self.num_iterations = 500
+        self.k_tournament = 3
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
@@ -21,12 +21,10 @@ class r1085734:
         population = []
 
         def is_valid_tour(tour):
-            for i in range(len(tour) - 1):
-                if np.isinf(distance_matrix[tour[i], tour[i+1]]):
-                    return False
-            if np.isinf(distance_matrix[tour[-1], tour[0]]):
-                return False
-            return True
+            from_city = tour
+            to_city = np.roll(tour, -1)
+            distances = distance_matrix[from_city, to_city]
+            return not np.any(np.isinf(distances))
 
         while len(population) < self.population_size - int(self.include_greedy):
             tour = np.concatenate(([0], np.random.permutation(np.arange(1, n))))
@@ -37,7 +35,7 @@ class r1085734:
             greedy_tour = self.greedy_solution(distance_matrix)
             population.append(greedy_tour)
 
-        return population
+        return np.array(population)
 
     def greedy_solution(self, distance_matrix):
         n = distance_matrix.shape[0]
@@ -53,20 +51,18 @@ class r1085734:
         return np.array(tour)
 
     def evaluate_fitness(self, tour, distance_matrix):
-        total_distance = 0
-        for i in range(len(tour)):
-            from_city = tour[i]
-            to_city = tour[(i + 1) % len(tour)]
-            if np.isinf(distance_matrix[from_city][to_city]):
-                return float('inf')
-            total_distance += distance_matrix[from_city][to_city]
-        return total_distance
+        from_city = tour
+        to_city = np.roll(tour, -1)
+        distances = distance_matrix[from_city, to_city]
+        if np.any(np.isinf(distances)):
+            return float('inf')
+        return np.sum(distances)
 
     def k_tournament_selection(self, population, fitnesses):
-        indices = np.random.choice(len(population), self.k_tournament, replace=False)
-        selected = [(population[i], fitnesses[i]) for i in indices]
-        selected.sort(key=lambda x: x[1])
-        return selected[0][0]
+        indices = np.random.choice(population.shape[0], self.k_tournament, replace=False)
+        selected_fitnesses = fitnesses[indices]
+        best_idx = indices[np.argmin(selected_fitnesses)]
+        return population[best_idx]
 
     def swap_mutation(self, tour):
         if np.random.rand() < self.mutation_prob_swap:
@@ -131,13 +127,14 @@ class r1085734:
             distance_matrix = np.loadtxt(file, delimiter=",")
 
         population = self.initialize_population(distance_matrix)
-        fitnesses = [self.evaluate_fitness(tour, distance_matrix) for tour in population]
+        fitnesses = np.array([self.evaluate_fitness(tour, distance_matrix) for tour in population])
 
         best_objective = float('inf')
         best_solution = None
 
         for iteration in range(self.num_iterations):
             new_population = []
+
             while len(new_population) < self.population_size:
                 parent1 = self.k_tournament_selection(population, fitnesses)
                 parent2 = self.k_tournament_selection(population, fitnesses)
@@ -149,11 +146,12 @@ class r1085734:
                 child = self.insert_mutation(child)
                 new_population.append(child)
 
-            combined_population = population + new_population
-            combined_fitnesses = [self.evaluate_fitness(tour, distance_matrix) for tour in combined_population]
-            sorted_combined = sorted(zip(combined_population, combined_fitnesses), key=lambda x: x[1])
-            population = [x[0] for x in sorted_combined[:self.population_size]]
-            fitnesses = [x[1] for x in sorted_combined[:self.population_size]]
+            new_population = np.array(new_population)
+            combined_population = np.vstack((population, new_population))
+            combined_fitnesses = np.array([self.evaluate_fitness(tour, distance_matrix) for tour in combined_population])
+            sorted_indices = np.argsort(combined_fitnesses)
+            population = combined_population[sorted_indices[:self.population_size]]
+            fitnesses = combined_fitnesses[sorted_indices[:self.population_size]]
 
             mean_objective = np.mean(fitnesses)
             best_objective = fitnesses[0]
@@ -173,4 +171,3 @@ class r1085734:
 if __name__ == "__main__":
     solver = r1085734()
     solver.optimize(TOUR_FILE)
-    
