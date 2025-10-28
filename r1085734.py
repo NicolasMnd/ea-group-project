@@ -2,17 +2,19 @@ import numpy as np
 import Reporter
 
 TOUR_FILE = "tour50.csv"
+SEED = 42
 
 class r1085734:
 
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
-        self.population_size = 200
-        self.num_iterations = 500
+        self.population_size = 100
+        self.num_iterations = 100
         self.k_tournament = 5
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
+        np.random.seed(SEED)
 
     def initialize_population(self, distance_matrix):
         n = distance_matrix.shape[0]
