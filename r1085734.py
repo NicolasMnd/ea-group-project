@@ -1,21 +1,25 @@
 import numpy as np
+
+import Plotter
 import Reporter
 
-TOUR_FILE = "tour50.csv"
+TOUR_FILE = "tour250.csv"
+
 SEED = 123
 
 class r1085734:
 
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
+        self.num_iterations = 100
         self.population_size = 1000
-        self.offspring_size = 2000
-        self.num_iterations = 200
+        self.offspring_size = 1000
         self.k_tournament = 3
         self.mutation_prob_swap = 0.05
         self.mutation_prob_insert = 0.1
         self.include_greedy = False
         self.edge_crossover_prob = 1.0
+        self.plotter = Plotter.LivePlotter()
         np.random.seed(SEED)
 
     def initialize_population(self, distance_matrix):
@@ -164,6 +168,8 @@ class r1085734:
             print(f"best fitness={best_objective:.2f}")
             print("----------------------")
 
+            #self.plotter.update(mean_objective, best_objective)
+
             timeLeft = self.reporter.report(mean_objective, best_objective, best_solution)
             if timeLeft < 0:
                 break
@@ -173,3 +179,4 @@ class r1085734:
 if __name__ == "__main__":
     solver = r1085734()
     solver.optimize(TOUR_FILE)
+    s = input()
