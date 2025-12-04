@@ -20,13 +20,13 @@ class LivePlotter:
         self.y2_vals.append(val2)
 
         self.ax.clear()
-        self.ax.plot(self.x_vals, self.y1_vals, label="Value 1")
-        self.ax.plot(self.x_vals, self.y2_vals, label="Value 2")
+        self.ax.plot(self.x_vals, self.y1_vals, label="Mean tour length")
+        self.ax.plot(self.x_vals, self.y2_vals, label="Lowest tour length")
 
         self.ax.set_xlabel("Iteration")
         self.ax.set_ylabel("Values")
         self.ax.legend()
-        self.ax.set_title("Live Updating Plot")
+        self.ax.set_title("Mean tour length vs lowest tour length per iteration")
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()

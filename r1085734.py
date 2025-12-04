@@ -1,25 +1,27 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 import Plotter
 import Reporter
 
-TOUR_FILE = "tour250.csv"
+TOUR_FILE = "tour50.csv"
 
 SEED = 123
+results = []
 
 class r1085734:
 
     def __init__(self):
         self.reporter = Reporter.Reporter(self.__class__.__name__)
-        self.num_iterations = 100
-        self.population_size = 1000
-        self.offspring_size = 1000
-        self.k_tournament = 3
+        self.num_iterations = 300
+        self.population_size = 100
+        self.offspring_size = 50
+        self.k_tournament = 5
         self.mutation_prob_swap = 0.05
-        self.mutation_prob_insert = 0.1
+        self.mutation_prob_insert = 0.05
         self.include_greedy = False
-        self.edge_crossover_prob = 1.0
-        self.plotter = Plotter.LivePlotter()
+        self.edge_crossover_prob = 0.5
+        #self.plotter = Plotter.LivePlotter()
         np.random.seed(SEED)
 
     def initialize_population(self, distance_matrix):
@@ -174,9 +176,22 @@ class r1085734:
             if timeLeft < 0:
                 break
 
-        return 0
+        return self.evaluate_fitness(best_solution, distance_matrix)
 
 if __name__ == "__main__":
+    iterations = 0
+    print("Iteration ", iterations)
     solver = r1085734()
-    solver.optimize(TOUR_FILE)
+    results.append(solver.optimize(TOUR_FILE))
+    iterations += 1
+
+    plt.figure()
+    y = [0] * len(results)
+    print(len(results), ", ", len(y))
+    if(len(results) == len(y)):
+        plt.scatter(results, y)
+    plt.yticks([])  # remove y-axis ticks
+    plt.xlabel("Values")
+    plt.title("1D Scatter Plot")
+    plt.show()
     s = input()
